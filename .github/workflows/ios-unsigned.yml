@@ -1,0 +1,55 @@
+name: Build unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios-webview
+        run: xcodegen generate
+
+      - name: Build unsigned app
+        working-directory: ios-webview
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project Qimen.xcodeproj \
+            -target Qimen \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath "$RUNNER_TEMP/build" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            build
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/build/Build/Products/Release-iphoneos/Qimen.app"
+          test -d "$APP"
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry Qimen-unsigned.ipa Payload
+          ls -lh Qimen-unsigned.ipa
+          file Payload/Qimen.app/Qimen || true
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Qimen-unsigned-ipa
+          path: Qimen-unsigned.ipa
+          if-no-files-found: error
