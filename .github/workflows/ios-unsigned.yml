@@ -23,23 +23,27 @@ jobs:
         working-directory: ios-webview
         run: |
           set -euo pipefail
+          PRODUCTS="$RUNNER_TEMP/products"
+          rm -rf "$PRODUCTS"
+          mkdir -p "$PRODUCTS"
           xcodebuild \
             -project Qimen.xcodeproj \
             -target Qimen \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath "$RUNNER_TEMP/build" \
+            CONFIGURATION_BUILD_DIR="$PRODUCTS" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             ARCHS=arm64 \
             ONLY_ACTIVE_ARCH=NO \
             build
+          ls -la "$PRODUCTS"
 
       - name: Package unsigned IPA
         run: |
           set -euo pipefail
-          APP="$RUNNER_TEMP/build/Build/Products/Release-iphoneos/Qimen.app"
+          APP="$RUNNER_TEMP/products/Qimen.app"
           test -d "$APP"
           mkdir -p Payload
           cp -R "$APP" Payload/
